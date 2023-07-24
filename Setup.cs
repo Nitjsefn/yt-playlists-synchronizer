@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 
 using Google.Apis.Services;
@@ -18,17 +19,25 @@ namespace yt_playlists_synchronizer
     {
         private string Token;
         public string PLsToSyncPath;
-		public YouTubeService ytService;
+		public string BasicCfgPath;
+		public YouTubeService YtService;
         public List<PlaylistToSync> PLsToSync { get; }
         public Setup(string configFilename)
         {
             Token = "";
             PLsToSyncPath = "";
+			BasicCfgPath = configFilename;
 			PLsToSync = new List<PlaylistToSync>();
-			//New method ReadCOnfigFile
-            if(!File.Exists(configFilename))
+			ReadConfigFiles();
+			ReadPlaylistsFromConfigFile();
+			ConnecToYtApi();
+        }
+
+		private void ReadConfigFiles()
+		{
+            if(!File.Exists(BasicCfgPath))
 				throw new FileNotFoundException("Could not find configuration file.");
-            string cfgFile = File.ReadAllText(configFilename);
+            string cfgFile = File.ReadAllText(BasicCfgPath);
             int lineStartIndx = cfgFile.IndexOf("Token:");
             if(lineStartIndx == -1)
 				throw new Exception("Configuration file is invalid. Could not find Token.");
@@ -47,11 +56,13 @@ namespace yt_playlists_synchronizer
             }
             if(PLsToSyncPath.Length == 0)
 				throw new Exception("Configuration file is invalid. Could not find path to file with playlists to sync.");
+		}
 
+		private void ReadPlaylistsFromConfigFile()
+		{
             if(!File.Exists(PLsToSyncPath))
 				throw new FileNotFoundException("Could not find playlists configuration file.");
             string[] playlistsFileLines = File.ReadAllLines(PLsToSyncPath);
-			//new method ReadPlToSyncFile
 			foreach(var line in playlistsFileLines)
 			{
 				//For each line call method GetPlaylistSyncInfo
@@ -67,10 +78,13 @@ namespace yt_playlists_synchronizer
 						playlist.NumberingOffset = numberingOffset;
 				PLsToSync.Add(playlist);
 			}
-			//new method ConnecToApi
+		}
+
+		private void ConnecToYtApi()
+		{
 			try
 			{
-				ytService = new YouTubeService(new BaseClientService.Initializer()
+				YtService = new YouTubeService(new BaseClientService.Initializer()
 				{
 					ApiKey = Token 
 				});
@@ -79,6 +93,42 @@ namespace yt_playlists_synchronizer
 			{
 				throw new Exception("Could not connect or authorize with YouTube API");
 			}
-        }
+			if(!CheckApiConnection())
+				throw new Exception("Could not connect or authorize with YouTube API");
+			//Task<bool> connectionSuccessTask = CheckApiConnectionAsync();
+			//connectionSuccessTask.Wait();
+			//if(!connectionSuccessTask.Result)
+			//	throw new Exception("Could not connect or authorize with YouTube API");
+		}
+
+		public async Task<bool> CheckApiConnectionAsync()
+		{
+			var req = YtService.Videos.List("snippet");
+			req.Chart = VideosResource.ListRequest.ChartEnum.MostPopular;
+			try
+			{
+				await req.ExecuteAsync();
+			}
+			catch(Exception e)
+			{
+				return false;
+			}
+			return true;
+		}
+
+		public bool CheckApiConnection()
+		{
+			var req = YtService.Videos.List("snippet");
+			req.Chart = VideosResource.ListRequest.ChartEnum.MostPopular;
+			try
+			{
+				req.ExecuteAsync().Wait();
+			}
+			catch(Exception e)
+			{
+				return false;
+			}
+			return true;
+		}
     }
 }
