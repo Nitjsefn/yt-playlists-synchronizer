@@ -2,6 +2,9 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 
+using Google.Apis.Services;
+using Google.Apis.YouTube.v3;
+
 namespace yt_playlists_synchronizer
 {
     struct PlaylistToSync
@@ -15,6 +18,7 @@ namespace yt_playlists_synchronizer
     {
         private string Token;
         public string PLsToSyncPath;
+		public YouTubeService ytService;
         public List<PlaylistToSync> PLsToSync { get; }
         public Setup(string configFilename)
         {
@@ -63,8 +67,18 @@ namespace yt_playlists_synchronizer
 						playlist.NumberingOffset = numberingOffset;
 				PLsToSync.Add(playlist);
 			}
-			foreach(var pl in PLsToSync)
-				Console.WriteLine(pl.PlaylistID + " " + pl.DesiredPlaylistName + " " + pl.NumberingOffset);
+			//new method ConnecToApi
+			try
+			{
+				ytService = new YouTubeService(new BaseClientService.Initializer()
+				{
+					ApiKey = Token 
+				});
+			}
+			catch(Exception e)
+			{
+				throw new Exception("Could not connect or authorize with YouTube API");
+			}
         }
     }
 }
