@@ -63,21 +63,41 @@ namespace yt_playlists_synchronizer
             if(!File.Exists(PLsToSyncPath))
 				throw new FileNotFoundException("Could not find playlists configuration file.");
             string[] playlistsFileLines = File.ReadAllLines(PLsToSyncPath);
+			int counter = 0;
 			foreach(var line in playlistsFileLines)
 			{
-				//For each line call method GetPlaylistSyncInfo
-				PlaylistToSync playlist = new PlaylistToSync();
-				string[] splitted;
-				splitted = line.Split(' ');
-				//Add checking if name and id fields are present
-				playlist.DesiredPlaylistName = splitted[0];
-				playlist.PlaylistID = splitted[1];
-				int numberingOffset;
-				if(splitted.Length == 3)
-					if(int.TryParse(splitted[2], out numberingOffset))
-						playlist.NumberingOffset = numberingOffset;
+				//Add logger, and send there error msgs
+				//Add checking if playlist names are uniq
+				counter++;
+				PlaylistToSync playlist = LineToPlaylistToSync(line); 
+				if(playlist.PlaylistID.Length == 0)
+				{
+					Console.WriteLine($"Problem with Playlist ID in {PLsToSyncPath} file in line: {counter}");
+					continue;
+				}
+				if(playlist.DesiredPlaylistName.Length == 0)
+				{
+					Console.WriteLine($"Problem with Playlist Name {PLsToSyncPath} file in line: {counter}");
+					continue;
+				}
 				PLsToSync.Add(playlist);
 			}
+		}
+
+		private PlaylistToSync LineToPlaylistToSync(string line)
+		{
+			var playlist = new PlaylistToSync();
+			string[] splitted;
+			splitted = line.Split(' ');
+			if(splitted.Length < 2)
+				return playlist;
+			playlist.DesiredPlaylistName = splitted[0];
+			playlist.PlaylistID = splitted[1];
+			int numberingOffset;
+			if(splitted.Length == 3)
+				if(int.TryParse(splitted[2], out numberingOffset))
+					playlist.NumberingOffset = numberingOffset;
+			return playlist;
 		}
 
 		private void ConnecToYtApi()
