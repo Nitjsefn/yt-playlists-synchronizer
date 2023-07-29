@@ -63,11 +63,11 @@ namespace yt_playlists_synchronizer
             if(!File.Exists(PLsToSyncPath))
 				throw new FileNotFoundException("Could not find playlists configuration file.");
             string[] playlistsFileLines = File.ReadAllLines(PLsToSyncPath);
+			List<string> PlNamesInUse = new List<string>();
 			int counter = 0;
 			foreach(var line in playlistsFileLines)
 			{
 				//Add logger, and send there error msgs
-				//Add checking if playlist names are uniq
 				counter++;
 				PlaylistToSync playlist = LineToPlaylistToSync(line); 
 				if(playlist.PlaylistID.Length == 0)
@@ -77,10 +77,16 @@ namespace yt_playlists_synchronizer
 				}
 				if(playlist.DesiredPlaylistName.Length == 0)
 				{
-					Console.WriteLine($"Problem with Playlist Name {PLsToSyncPath} file in line: {counter}");
+					Console.WriteLine($"Problem with Playlist Name in {PLsToSyncPath} file in line: {counter}");
+					continue;
+				}
+				if(PlNamesInUse.Contains(playlist.DesiredPlaylistName))
+				{
+					Console.WriteLine($"Playlist Name: {playlist.DesiredPlaylistName} is currently in use and cannot be used again. File {PLsToSyncPath} Line: {counter}");
 					continue;
 				}
 				PLsToSync.Add(playlist);
+				PlNamesInUse.Add(playlist.DesiredPlaylistName);
 			}
 		}
 
