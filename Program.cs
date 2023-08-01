@@ -11,12 +11,13 @@ namespace yt_playlists_synchronizer
 {
     class Program
     {
-		public static string configFileName = "./config.txt";
-		public static Setup context = new Setup(configFileName);
-        private static void Main(string[] args) => Program.Run().Wait();
-        private static async Task Run()
-        {
-			
-        }
-    }
+		public static string ConfigFileName = "./config.txt";
+		public static Logger Log;
+		public static Setup Context;
+		private static void Main(string[] args)
+		{
+			Log = new Logger();
+			Context = new Setup(ConfigFileName);
+		}
+	}
 }
