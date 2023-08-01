@@ -67,22 +67,21 @@ namespace yt_playlists_synchronizer
 			int counter = 0;
 			foreach(var line in playlistsFileLines)
 			{
-				//Add logger, and send there error msgs
 				counter++;
 				PlaylistToSync playlist = LineToPlaylistToSync(line); 
 				if(playlist.PlaylistID.Length == 0)
 				{
-					Console.WriteLine($"Problem with Playlist ID in {PLsToSyncPath} file in line: {counter}");
+					Program.Log.ErrorLine($"Problem with Playlist ID in {PLsToSyncPath} file in line: {counter}. This playlist won't be synchronized");
 					continue;
 				}
 				if(playlist.DesiredPlaylistName.Length == 0)
 				{
-					Console.WriteLine($"Problem with Playlist Name in {PLsToSyncPath} file in line: {counter}");
+					Program.Log.ErrorLine($"Problem with Playlist Name in {PLsToSyncPath} file in line: {counter}. This playlist won't be synchronized");
 					continue;
 				}
 				if(PlNamesInUse.Contains(playlist.DesiredPlaylistName))
 				{
-					Console.WriteLine($"Playlist Name: {playlist.DesiredPlaylistName} is currently in use and cannot be used again. File {PLsToSyncPath} Line: {counter}");
+					Program.Log.ErrorLine($"Playlist Name: {playlist.DesiredPlaylistName} is currently in use and cannot be used again. File {PLsToSyncPath} Line: {counter}. This playlist won't be synchronized");
 					continue;
 				}
 				PLsToSync.Add(playlist);
