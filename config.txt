@@ -1,2 +1,2 @@
 Token: PLACE YOUR TOKEN HERE;
-PLsToSyncPath: PLACE YOUR PATH HERE;
+PLsToSyncPath: PlsToSyncPathTemplate.txt;
