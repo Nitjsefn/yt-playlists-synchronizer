@@ -17,23 +17,27 @@ namespace yt_playlists_synchronizer
 
     class Setup
     {
+		// SyncedPlsPath + PlsCfgFilename = PLsToSyncPath
         private string Token;
         public string PLsToSyncPath;
 		public string BasicCfgPath;
+        public string SyncedPlsDir;
 		public YouTubeService YtService;
         public List<PlaylistToSync> PLsToSync { get; }
+
         public Setup(string configFilename)
         {
             Token = "";
             PLsToSyncPath = "";
 			BasicCfgPath = configFilename;
 			PLsToSync = new List<PlaylistToSync>();
-			ReadConfigFiles();
+			ReadConfigFile();
+			SyncedPlsDir = GetParentDirectory(PLsToSyncPath);
 			ReadPlaylistsFromConfigFile();
 			ConnecToYtApi();
         }
 
-		private void ReadConfigFiles()
+		private void ReadConfigFile()
 		{
             if(!File.Exists(BasicCfgPath))
 				throw new FileNotFoundException("Could not find configuration file.");
@@ -87,6 +91,17 @@ namespace yt_playlists_synchronizer
 				PLsToSync.Add(playlist);
 				PlNamesInUse.Add(playlist.DesiredPlaylistName);
 			}
+		}
+
+		private string GetParentDirectory(string path)
+		{
+			int i = path.Length - 1;
+			if(path.EndsWith('/') || path.EndsWith('\\'))
+				i--;
+			while(i >= 0 && path[i] != '/' && path[i] != '\\')
+				i--;
+			if(i < 0) return "./";
+			return path.Substring(0, i+1);
 		}
 
 		private PlaylistToSync LineToPlaylistToSync(string line)
