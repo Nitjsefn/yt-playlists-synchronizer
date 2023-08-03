@@ -1,0 +1,2 @@
+Token: PLACE YOUR TOKEN HERE;
+PLsToSyncPath: PlsToSyncPathTemplate.txt;

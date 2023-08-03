@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Threading.Tasks;
+
 using Google.Apis.Services;
 using Google.Apis.Upload;
 using Google.Apis.Util.Store;
@@ -9,9 +11,13 @@ namespace yt_playlists_synchronizer
 {
     class Program
     {
-        static void Main(string[] args)
-        {
-            Console.WriteLine("Hello, World!");
-        }
-    }
+		public static string ConfigFileName = "./config.txt";
+		public static Logger Log;
+		public static Setup Context;
+		private static void Main(string[] args)
+		{
+			Log = new Logger();
+			Context = new Setup(ConfigFileName);
+		}
+	}
 }
