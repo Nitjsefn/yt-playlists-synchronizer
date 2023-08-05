@@ -1,6 +1,5 @@
 using System.IO;
 using System.Collections.Generic;
-using FileNameCheckerNs;
 
 using Google.Apis.YouTube.v3;
 
@@ -35,9 +34,10 @@ namespace yt_playlists_synchronizer
 
 		private List<SyncedVideo> ReadSyncedPls()
 		{
+			return new List<SyncedVideo>();
 		}
 
-		private PerformSync()
+		private void PerformSync()
 		{
 		}
 	}
