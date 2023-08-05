@@ -109,7 +109,7 @@ namespace yt_playlists_synchronizer
 		{
 			var playlist = new PlaylistToSync();
 			string[] splitted;
-			splitted = line.Split(' ');
+			splitted = line.Split(';');
 			if(splitted.Length < 2)
 				return playlist;
 			playlist.DesiredPlaylistName = FileNameChecker.FormatFileName(splitted[0]);
