@@ -14,15 +14,27 @@ namespace yt_playlists_synchronizer
 
 	class PlSync
 	{
-		public static void Synchronize(PlaylistToSync playlist)
+		private readonly PlaylistToSync Playlist;
+		private readonly string TargetDir;
+		private List<PlaylistsResource> VideosToSync;
+		private int AvailablePos;
+
+		public PlSync(PlaylistToSync pl)
+		{
+			Playlist = pl;
+			VideosToSync = new List<PlaylistsResource>();
+			TargetDir = Program.Context.SyncedPlsDir + Playlist.DesiredPlaylistName + '/'; // Add file name checking
+		}
+
+		public void Synchronize()
 		{
 		}
 
-		private static List<SyncedVideo> ReadSyncedPls(string path)
+		private List<SyncedVideo> ReadSyncedPls()
 		{
 		}
 
-		private static PerformSync(List<PlaylistsResource> toSync, int availablePos)
+		private PerformSync()
 		{
 		}
 	}
