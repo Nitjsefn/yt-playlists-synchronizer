@@ -1,5 +1,6 @@
 using System.IO;
 using System.Collections.Generic;
+using FileNameCheckerNs;
 
 using Google.Apis.YouTube.v3;
 
@@ -23,7 +24,9 @@ namespace yt_playlists_synchronizer
 		{
 			Playlist = pl;
 			VideosToSync = new List<PlaylistsResource>();
-			TargetDir = Program.Context.SyncedPlsDir + Playlist.DesiredPlaylistName + '/'; // Add file name checking
+			TargetDir = Program.Context.SyncedPlsDir
+				+ Playlist.DesiredPlaylistName
+				+ '/';
 		}
 
 		public void Synchronize()

@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using FileNameCheckerNs;
 
 using Google.Apis.Services;
 using Google.Apis.YouTube.v3;
@@ -111,7 +112,7 @@ namespace yt_playlists_synchronizer
 			splitted = line.Split(' ');
 			if(splitted.Length < 2)
 				return playlist;
-			playlist.DesiredPlaylistName = splitted[0];
+			playlist.DesiredPlaylistName = FileNameChecker.FormatFileName(splitted[0]);
 			playlist.PlaylistID = splitted[1];
 			int numberingOffset;
 			if(splitted.Length == 3)
