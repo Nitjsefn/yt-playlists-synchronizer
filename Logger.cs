@@ -24,5 +24,13 @@ namespace yt_playlists_synchronizer
 			Console.WriteLine(err);
 			Console.ForegroundColor = defaultConsoleFgColor;
 		}
+
+		public void WarningLine(string err)
+		{
+			var defaultConsoleFgColor = Console.ForegroundColor;
+			Console.ForegroundColor = ConsoleColor.DarkYellow;
+			Console.WriteLine(err);
+			Console.ForegroundColor = defaultConsoleFgColor;
+		}
 	}
 }
