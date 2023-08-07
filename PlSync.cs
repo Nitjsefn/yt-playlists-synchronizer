@@ -16,6 +16,11 @@ namespace yt_playlists_synchronizer
 	{
 		private readonly PlaylistToSync Playlist;
 		private readonly string TargetDir;
+		private readonly string CapsDir;
+		private readonly string ThumbDir;
+		private readonly string DescDir;
+		private readonly string VideosDir;
+		private readonly string SyncDataPath;
 		private List<PlaylistsResource> VideosToSync;
 		private int AvailablePos;
 
@@ -26,6 +31,13 @@ namespace yt_playlists_synchronizer
 			TargetDir = Program.Context.SyncedPlsDir
 				+ Playlist.DesiredPlaylistName
 				+ '/';
+			CapsDir = TargetDir + "captions/";
+			ThumbDir = TargetDir + "thumbs/";
+			DescDir = TargetDir + "descriptions/";
+			VideosDir = TargetDir + "videos/";
+			SyncDataPath = Program.Context.SyncDataDir
+				+ Playlist.DesiredPlaylistName
+				+ ".csv";
 		}
 
 		public void Synchronize()
