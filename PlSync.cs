@@ -42,6 +42,25 @@ namespace yt_playlists_synchronizer
 
 		public void Synchronize()
 		{
+			Program.Log.InfoLine($"Synchronization Begin: {Playlist.DesiredPlaylistName}");
+			string notBackupedWarning = "Playlist directory is not empty. You may forgot to backup after last sync, but that's ok.";
+			if(Directory.Exists(TargetDir))
+			{
+				if(Directory.GetFiles(TargetDir, "*.*", SearchOption.AllDirectories).Length > 0)
+					Program.Log.WarningLine(notBackupedWarning);
+			}
+			else Directory.CreateDirectory(TargetDir);
+
+			if(!Directory.Exists(CapsDir))
+				Directory.CreateDirectory(CapsDir);
+			if(!Directory.Exists(ThumbDir))
+				Directory.CreateDirectory(ThumbDir);
+			if(!Directory.Exists(DescDir))
+				Directory.CreateDirectory(DescDir);
+			if(!Directory.Exists(VideosDir))
+				Directory.CreateDirectory(VideosDir);
+
+			Program.Log.InfoLine($"Synchronization End: {Playlist.DesiredPlaylistName}");
 		}
 
 		private List<SyncedVideo> ReadSyncedPls()
