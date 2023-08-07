@@ -18,6 +18,8 @@ namespace yt_playlists_synchronizer
 		{
 			Log = new Logger();
 			Context = new Setup(ConfigFileName);
+			foreach(var pl in Context.PLsToSync)
+				new PlSync(pl).Synchronize();
 		}
 	}
 }
