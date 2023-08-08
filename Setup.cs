@@ -73,6 +73,7 @@ namespace yt_playlists_synchronizer
             string[] playlistsFileLines = File.ReadAllLines(PlsCfgPath);
 			List<string> PlNamesInUse = new List<string>();
 			PlNamesInUse.Add("sync-data");
+			AddUsedFilenames(PlNamesInUse, SyncedPlsDir);
 			int counter = 0;
 			foreach(var line in playlistsFileLines)
 			{
@@ -98,6 +99,12 @@ namespace yt_playlists_synchronizer
 			}
 		}
 
+		private void AddUsedFilenames(List<string> list, string path)
+		{
+			foreach(var name in Directory.GetFiles(path))
+				list.Add(GetNameFromPath(name));
+		}
+
 		private string GetParentDirectory(string path)
 		{
 			int i = path.Length - 1;
@@ -107,6 +114,19 @@ namespace yt_playlists_synchronizer
 				i--;
 			if(i < 0) return "./";
 			return path.Substring(0, i+1);
+		}
+
+		public string GetNameFromPath(string path)
+		{
+			int nameOffset = 0;
+			if(path.EndsWith('/') || path.EndsWith('\\'))
+				nameOffset--;
+			int i = path.Length - 1;
+			while(i > 0 && path[i-1] != '/' && path[i-1] != '\\')
+				i--;
+			//if(i == 0) return path.Substring(0, path.Length - Convert.ToInt32(Convert.ToBoolean(path[path.Length - 1]  - '\\') != Convert.ToBoolean(path[path.Length - 1] - '/')));
+			//return path.Substring(i, path.Length - i - Convert.ToInt32(Convert.ToBoolean(path[path.Length - 1]  - '\\') != Convert.ToBoolean(path[path.Length - 1] - '/')));
+			return path.Substring(i, path.Length + nameOffset - i);
 		}
 
 		private PlaylistToSync LineToPlaylistToSync(string line)
