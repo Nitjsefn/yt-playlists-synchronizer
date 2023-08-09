@@ -21,6 +21,7 @@ namespace yt_playlists_synchronizer
 		private readonly string DescDir;
 		private readonly string VideosDir;
 		private readonly string SyncDataPath;
+		private readonly bool FirstSync;
 		private List<PlaylistsResource> VideosToSync;
 		private int AvailablePos;
 
@@ -38,6 +39,9 @@ namespace yt_playlists_synchronizer
 			SyncDataPath = Program.Context.SyncDataDir
 				+ Playlist.DesiredPlaylistName
 				+ ".csv";
+			FirstSync = false;
+			if(!File.Exists(SyncDataPath) || new FileInfo(SyncDataPath).Length == 0)
+				FirstSync = true;
 		}
 
 		public void Synchronize()
@@ -48,7 +52,14 @@ namespace yt_playlists_synchronizer
 			if(Directory.Exists(TargetDir))
 			{
 				if(Directory.GetFiles(TargetDir, "*.*", SearchOption.AllDirectories).Length > 0)
+				{
+					if(FirstSync)
+					{
+						Program.Log.ErrorLine("The sync directory is not empty even though this is the first sync. This playlist won't be synchronized. Interrupting...");
+						return;
+					}
 					Program.Log.WarningLine(notBackupedWarning);
+				}
 			}
 			else Directory.CreateDirectory(TargetDir);
 
