@@ -20,6 +20,7 @@ namespace yt_playlists_synchronizer
 		private readonly string ThumbDir;
 		private readonly string DescDir;
 		private readonly string VideosDir;
+		private readonly string CsvPath;
 		private readonly string SyncDataPath;
 		private readonly bool FirstSync;
 		private List<PlaylistsResource> VideosToSync;
@@ -39,6 +40,8 @@ namespace yt_playlists_synchronizer
 			SyncDataPath = Program.Context.SyncDataDir
 				+ Playlist.DesiredPlaylistName
 				+ ".csv";
+			CsvPath = TargetDir + Playlist.DesiredPlaylistName
+				+ ".csv";
 			FirstSync = false;
 			if(!File.Exists(SyncDataPath) || new FileInfo(SyncDataPath).Length == 0)
 				FirstSync = true;
@@ -48,17 +51,35 @@ namespace yt_playlists_synchronizer
 		{
 			Program.Log.InfoLine($"Synchronization Begin: {Playlist.DesiredPlaylistName}");
 
-			string notBackupedWarning = "Playlist directory is not empty. You may have forgotten to backup data after last sync. Old data will not intentionally be deleted";
 			if(Directory.Exists(TargetDir))
 			{
-				if(Directory.GetFiles(TargetDir, "*.*", SearchOption.AllDirectories).Length > 0)
+				int filesCount = Directory.GetFiles(TargetDir, "*.*", SearchOption.AllDirectories).Length;
+				if(filesCount > 0)
 				{
 					if(FirstSync)
 					{
 						Program.Log.ErrorLine("The sync directory is not empty even though this is the first sync. This playlist won't be synchronized. Interrupting...");
 						return;
 					}
-					Program.Log.WarningLine(notBackupedWarning);
+					if(!File.Exists(CsvPath))
+					{
+						Program.Log.ErrorLine("Playlist directory is not empty even though csv file does not exist. This playlist won't be synchronized. Interrupting...");
+						return;
+					}
+					if(filesCount > 1 && new FileInfo(CsvPath).Length == 0)
+					{
+						Program.Log.ErrorLine("Playlist directory is not empty even though csv file is. This playlist won't be synchronized. Interrupting...");
+						return;
+					}
+					if(filesCount == 1 && new FileInfo(CsvPath).Length > 0)
+					{
+						Program.Log.ErrorLine("Playlist directory doesn't have files even though csv file is not empty. This playlist won't be synchronized. Interrupting...");
+						return;
+					}
+					if(filesCount != 1)
+					{
+						Program.Log.WarningLine("Playlist directory is not empty. You may have forgotten to backup data after last sync. Old data will not be intentionally deleted");
+					}
 				}
 			}
 			else Directory.CreateDirectory(TargetDir);
