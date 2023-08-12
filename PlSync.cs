@@ -24,7 +24,7 @@ namespace yt_playlists_synchronizer
 		private readonly string SyncDataPath;
 		private readonly bool FirstSync;
 		private List<PlaylistsResource> VideosToSync;
-		private int AvailablePos;
+		private int BDVidAvailablePos;
 
 		public PlSync(PlaylistToSync pl)
 		{
@@ -50,6 +50,24 @@ namespace yt_playlists_synchronizer
 		public void Synchronize()
 		{
 			Program.Log.InfoLine($"Synchronization Begin: {Playlist.DesiredPlaylistName}");
+
+			if(!FirstSync)
+			{
+				using(var sr = new StreamReader(SyncDataPath))
+				{
+					try
+					{
+						BDVidAvailablePos = int.Parse(sr.ReadLine().Split(",;")[0]) + 1;
+					}
+					catch
+					{
+						Program.Log.ErrorLine($"Playlist sync data file is corrupted: '{SyncDataPath}'. This playlist won't be synchronized. Interrupting...");
+						return;
+					}
+				}
+			}
+			else
+				BDVidAvailablePos = 1;
 
 			if(Directory.Exists(TargetDir))
 			{
@@ -79,6 +97,27 @@ namespace yt_playlists_synchronizer
 					if(filesCount != 1)
 					{
 						Program.Log.WarningLine("Playlist directory is not empty. You may have forgotten to backup data after last sync. Old data will not be intentionally deleted");
+						int nextVidPosByCsv;
+						using(var sr = new StreamReader(CsvPath))
+						{
+							try
+							{
+								nextVidPosByCsv = int.Parse(sr.ReadLine().Split(",;")[0]) + 1;
+							}
+							catch
+							{
+								Program.Log.ErrorLine("Playlist csv file is corrupted. This playlist won't be synchronized. Interrupting...");
+								return;
+							}
+						}
+						int BDVidPosWithNO = BDVidAvailablePos + Playlist.NumberingOffset;
+						if(nextVidPosByCsv > BDVidPosWithNO)
+						{
+							Program.Log.ErrorLine($"Numbering offset is too low, which can cause overwritting some previously synced files. Change offset or (backup synced data and delete content of '{TargetDir}') and start sync again. This playlist won't be synchronized. Interrupting...");
+							return;
+						}
+						if(nextVidPosByCsv < BDVidPosWithNO)
+							Program.Log.WarningLine("Numbering offset is higher than expected, which will cause gap in csv file and videos numbering. Check this after sync");
 					}
 				}
 			}
@@ -93,6 +132,8 @@ namespace yt_playlists_synchronizer
 			if(!Directory.Exists(VideosDir))
 				Directory.CreateDirectory(VideosDir);
 
+			if(FirstSync && Playlist.NumberingOffset != 0)
+				Program.Log.WarningLine("Numbering offset does not equal to 0 even though this is the first sync. Because of this, synced videos won't start at number 1. Check this after sync");
 			
 			
 			Program.Log.InfoLine($"Synchronization End: {Playlist.DesiredPlaylistName}");
