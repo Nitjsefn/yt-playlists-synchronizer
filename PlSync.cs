@@ -1,13 +1,15 @@
+using System;
 using System.IO;
 using System.Collections.Generic;
 
 using Google.Apis.YouTube.v3;
+using Google.Apis.YouTube.v3.Data;
 
 namespace yt_playlists_synchronizer
 {
 	struct SyncedVideo
 	{
-		public string FoundingDate;
+		//public string FoundingDate;
 		public string Id;
 		public int Pos;
 	}
@@ -23,13 +25,14 @@ namespace yt_playlists_synchronizer
 		private readonly string CsvPath;
 		private readonly string SyncDataPath;
 		private readonly bool FirstSync;
-		private List<PlaylistsResource> VideosToSync;
+		private List<Playlist> VideosToSync;
+		private List<SyncedVideo> SyncedVideos;
 		private int BDVidAvailablePos;
 
 		public PlSync(PlaylistToSync pl)
 		{
 			Playlist = pl;
-			VideosToSync = new List<PlaylistsResource>();
+			VideosToSync = new List<Playlist>();
 			TargetDir = Program.Context.SyncedPlsDir
 				+ Playlist.DesiredPlaylistName
 				+ '/';
@@ -135,13 +138,83 @@ namespace yt_playlists_synchronizer
 			if(FirstSync && Playlist.NumberingOffset != 0)
 				Program.Log.WarningLine("Numbering offset does not equal to 0 even though this is the first sync. Because of this, synced videos won't start at number 1. Check this after sync");
 			
-			
+			//Sync
+			if(!FirstSync)
+			{
+				SyncedVideos = ReadSyncedVids();
+				if(SyncedVideos == null)
+				{
+					Program.Log.ErrorLine($"Playlist sync data file is corrupted: '{SyncDataPath}'. This playlist won't be synchronized. Interrupting...");
+					return;
+				}
+			}
+			else
+				SyncedVideos = new List<SyncedVideo>();
+
+			var ytReq = Program.Context.YtService.Playlists.List("snippet");
+			ytReq.MaxResults = 50;
+			ytReq.Id = Playlist.PlaylistID;
+			while(ytReq.PageToken != null)
+			{
+
+				PlaylistListResponse ytRes;
+				try
+				{
+					ytRes = ytReq.Execute();
+				}
+				catch
+				{
+					Program.Log.ErrorLine("Something went wrong while connecting to YouTube. Check your internet connection and Playlist Id. This playlist won't be synchronized. Interrupting...");
+					return;
+				}
+				ytReq.PageToken = ytRes.NextPageToken;
+				foreach(var video in ytRes.Items)
+				{
+					int pos = SyncedVidPos(video.Id);
+					if(pos == -1)
+						VideosToSync.Add(video);
+					else
+						SyncedVideos.RemoveAt(pos);
+				}
+			}
+//DEBUG
+			foreach(var v in VideosToSync)
+				Console.WriteLine($"{v.Snippet.Title} {v.Id}");
+			Console.WriteLine($"SyncedVideos: {SyncedVideos.Count}");
+//END DEBUG
+
 			Program.Log.InfoLine($"Synchronization End: {Playlist.DesiredPlaylistName}");
 		}
 
-		private List<SyncedVideo> ReadSyncedPls()
+		private List<SyncedVideo> ReadSyncedVids()
 		{
-			return new List<SyncedVideo>();
+			var videos = new List<SyncedVideo>();
+			string[] lines = File.ReadAllLines(SyncDataPath);
+			foreach(string line in lines)
+			{
+				SyncedVideo vid;
+				string[] fields = line.Split(",;");
+				try
+				{
+					vid.Pos = int.Parse(fields[0]);
+					vid.Id = fields[1];
+					//vid.FoundingDate = int.Parse(fields[2]);
+				}
+				catch
+				{
+					return null;
+				}
+				videos.Add(vid);
+			}
+			return videos;
+		}
+
+		private int SyncedVidPos(string id)
+		{
+			for(int i = 0; i < SyncedVideos.Count; i++)
+				if(SyncedVideos[i].Id == id)
+					return i;
+			return -1;
 		}
 
 		private void PerformSync()
