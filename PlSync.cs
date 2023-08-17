@@ -25,14 +25,14 @@ namespace yt_playlists_synchronizer
 		private readonly string CsvPath;
 		private readonly string SyncDataPath;
 		private readonly bool FirstSync;
-		private List<Playlist> VideosToSync;
+		private List<PlaylistItem> VideosToSync;
 		private List<SyncedVideo> SyncedVideos;
 		private int BDVidAvailablePos;
 
 		public PlSync(PlaylistToSync pl)
 		{
 			Playlist = pl;
-			VideosToSync = new List<Playlist>();
+			VideosToSync = new List<PlaylistItem>();
 			TargetDir = Program.Context.SyncedPlsDir
 				+ Playlist.DesiredPlaylistName
 				+ '/';
@@ -151,13 +151,13 @@ namespace yt_playlists_synchronizer
 			else
 				SyncedVideos = new List<SyncedVideo>();
 
-			var ytReq = Program.Context.YtService.Playlists.List("snippet");
+			var ytReq = Program.Context.YtService.PlaylistItems.List("snippet");
 			ytReq.MaxResults = 50;
-			ytReq.Id = Playlist.PlaylistID;
+			ytReq.PlaylistId = Playlist.PlaylistID;
+			ytReq.PageToken = "";
 			while(ytReq.PageToken != null)
 			{
-
-				PlaylistListResponse ytRes;
+				PlaylistItemListResponse ytRes;
 				try
 				{
 					ytRes = ytReq.Execute();
@@ -170,18 +170,13 @@ namespace yt_playlists_synchronizer
 				ytReq.PageToken = ytRes.NextPageToken;
 				foreach(var video in ytRes.Items)
 				{
-					int pos = SyncedVidPos(video.Id);
+					int pos = SyncedVidPos(video.Snippet.ResourceId.VideoId);
 					if(pos == -1)
 						VideosToSync.Add(video);
 					else
 						SyncedVideos.RemoveAt(pos);
 				}
 			}
-//DEBUG
-			foreach(var v in VideosToSync)
-				Console.WriteLine($"{v.Snippet.Title} {v.Id}");
-			Console.WriteLine($"SyncedVideos: {SyncedVideos.Count}");
-//END DEBUG
 
 			Program.Log.InfoLine($"Synchronization End: {Playlist.DesiredPlaylistName}");
 		}
