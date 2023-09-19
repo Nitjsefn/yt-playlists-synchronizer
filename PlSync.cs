@@ -197,30 +197,70 @@ namespace yt_playlists_synchronizer
 			else
 				SyncedVideos = new List<SyncedVideo>();
 
+			bool gotAllVids = false;
 			var ytReq = Program.Context.YtService.PlaylistItems.List("snippet");
 			ytReq.MaxResults = 50;
 			ytReq.PlaylistId = Playlist.PlaylistID;
-			ytReq.PageToken = "";
-			while(ytReq.PageToken != null)
+			while(!gotAllVids)
 			{
-				PlaylistItemListResponse ytRes;
-				try
+				ytReq.PageToken = "";
+				var syncedVids = new List<SyncedVideo>(SyncedVideos);
+				var addedToSync = new List<PlaylistItem>(VideosToSync);
+				gotAllVids = true;
+				bool firstPage = true;
+				int totalResults = 0;
+				while(ytReq.PageToken != null)
 				{
-					ytRes = ytReq.Execute();
-				}
-				catch
-				{
-					Program.Log.ErrorLine("Something went wrong while connecting to YouTube. Check your internet connection and Playlist Id. This playlist won't be synchronized. Interrupting...");
-					return;
-				}
-				ytReq.PageToken = ytRes.NextPageToken;
-				foreach(var video in ytRes.Items)
-				{
-					int pos = SyncedVidPos(video.Snippet.ResourceId.VideoId);
-					if(pos == -1)
-						VideosToSync.Add(video);
-					else
-						SyncedVideos.RemoveAt(pos);
+					PlaylistItemListResponse ytRes;
+					try
+					{
+						ytRes = ytReq.Execute();
+						if(ytRes == null || ytRes.ETag == null || ytRes.ETag == "")
+							throw new Exception("Something went wrong while downloading playlist info. Check your internet connection and available quota points");
+					}
+					catch
+					{
+						Program.Log.ErrorLine($"Something went wrong while connecting to YouTube. Check your internet connection and Playlist Id. Also you may have exceeded your quota units. Already received data will be stored in \"{NotFinishedDir}\" in case of some video loss before next sync. Program won't use this data for future syncs. This playlist won't be synchronized. Interrupting...");
+						if(!Directory.Exists(NotFinishedDir))
+							Directory.CreateDirectory(NotFinishedDir);
+						foreach(var video in VideosToSync)
+						{
+							var filePath = $"{NotFinishedDir}{FileNameChecker.FormatFileName(video.Snippet.Title)}.{video.Snippet.ResourceId.VideoId}.{DateTime.Now.ToString("yyyyMMddHHmmss")}.json";
+							try
+							{
+								File.AppendAllText(filePath, JsonSerializer.Serialize(video, new JsonSerializerOptions{ WriteIndented = true }));
+							}
+							catch
+							{
+								Program.Log.ErrorLine($"Something went wrong while saving files. Check directory access permissions and available space on drive");
+								break;
+							}
+						}
+						return;
+					}
+					ytReq.PageToken = ytRes.NextPageToken;
+					foreach(var video in ytRes.Items)
+					{
+						//int pos = SyncedVidPos(video.Snippet.ResourceId.VideoId);
+						int pos = syncedVids.FindIndex((e) => { return e.Id == video.Snippet.ResourceId.VideoId; });
+						if(pos == -1)
+						{
+							pos = addedToSync.FindIndex((e) => { return e.Snippet.ResourceId.VideoId == video.Snippet.ResourceId.VideoId; });
+							if(pos == -1)
+								VideosToSync.Add(video);
+							else
+								addedToSync.RemoveAt(pos);
+						}
+						else
+							syncedVids.RemoveAt(pos);
+					}
+					if(firstPage)
+					{
+						firstPage = false;
+						totalResults = (int)ytRes.PageInfo.TotalResults;
+					}
+					else if(ytRes.PageInfo.TotalResults != totalResults)
+						gotAllVids = false;
 				}
 			}
 
