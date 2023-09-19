@@ -29,8 +29,16 @@ namespace yt_playlists_synchronizer
 		private readonly string DescDir;
 		private readonly string VideosDir;
 		private readonly string CsvPath;
+		private readonly string RevCsvPath;
+		private readonly string NewCsvPath;
 		private readonly string SyncDataPath;
+		private readonly string RevSyncDataPath;
+		private readonly string NewSyncDataPath;
+		private readonly string DoubledFilesDir;
+		private readonly string NotFinishedDir;
 		private readonly bool FirstSync;
+		private readonly string Delim;
+		private readonly Ping YtPing;
 		private List<PlaylistItem> VideosToSync;
 		private List<SyncedVideo> SyncedVideos;
 		private int BDVidAvailablePos;
@@ -46,19 +54,51 @@ namespace yt_playlists_synchronizer
 			ThumbDir = TargetDir + "thumbs/";
 			DescDir = TargetDir + "descriptions/";
 			VideosDir = TargetDir + "videos/";
+			DoubledFilesDir = TargetDir + "doubled filenames/";
+			NotFinishedDir = TargetDir + "not finished/";
 			SyncDataPath = Program.Context.SyncDataDir
 				+ Playlist.DesiredPlaylistName
 				+ ".csv";
+			RevSyncDataPath = Program.Context.SyncDataDir
+				+ Playlist.DesiredPlaylistName
+				+ ".rcsv";
+			NewSyncDataPath = Program.Context.SyncDataDir
+				+ Playlist.DesiredPlaylistName
+				+ ".ncsv";
 			CsvPath = TargetDir + Playlist.DesiredPlaylistName
 				+ ".csv";
+			RevCsvPath = TargetDir + Playlist.DesiredPlaylistName
+				+ ".rcsv";
+			NewCsvPath = TargetDir + Playlist.DesiredPlaylistName
+				+ ".ncsv";
 			FirstSync = false;
 			if(!File.Exists(SyncDataPath) || new FileInfo(SyncDataPath).Length == 0)
 				FirstSync = true;
+			Delim = ",;";
+			YtPing = new Ping();
 		}
 
 		public void Synchronize()
 		{
 			Program.Log.InfoLine($"Synchronization Begin: {Playlist.DesiredPlaylistName}");
+
+			string testFilePath = Program.Context.TestDir + "test-file.test";
+			try
+			{
+				File.WriteAllText(testFilePath, "Lorem ipsum dolor sit amet");
+				File.Delete(testFilePath);
+			}
+			catch
+			{
+				Program.Log.ErrorLine("Something went wrong while saving or deleting test file. Check directory access privileges and available space on drive. This playlist won't be synchronized. Interrupting...");
+				return;
+			}
+
+			if(Directory.Exists(DoubledFilesDir) && Directory.GetFiles(DoubledFilesDir).Length > 0)
+			{
+				Program.Log.ErrorLine($"The \"{DoubledFilesDir}\" dir exists and has files, which is not acceptable to proceed. Resolve conflicted filenames and remove them from that dir. This playlist won't be synchronized. Interrupting...");
+				return;
+			}
 
 			if(!FirstSync)
 			{
