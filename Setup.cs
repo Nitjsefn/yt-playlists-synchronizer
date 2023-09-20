@@ -1,11 +1,14 @@
 using System;
 using System.IO;
+using System.Globalization;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Diagnostics;
 using FileNameCheckerNs;
 
 using Google.Apis.Services;
 using Google.Apis.YouTube.v3;
+using Google.Apis.YouTube.v3.Data;
 
 namespace yt_playlists_synchronizer
 {
@@ -20,10 +23,12 @@ namespace yt_playlists_synchronizer
     {
 		// SyncedPlsPath + PlsCfgFilename = PlsCfgPath
         private string Token;
+        private string RegionCode;
         public string PlsCfgPath;
 		public string BasicCfgPath;
         public string SyncedPlsDir;
         public string SyncDataDir;
+        public string TestDir;
 		public YouTubeService YtService;
         public List<PlaylistToSync> PLsToSync { get; }
 
@@ -34,11 +39,13 @@ namespace yt_playlists_synchronizer
 			BasicCfgPath = configFilename;
 			PLsToSync = new List<PlaylistToSync>();
 			ReadConfigFile();
-			SyncedPlsDir = GetParentDirectory(PlsCfgPath);
-			SyncDataDir = SyncedPlsDir + "sync-data/";
+			SyncedPlsDir = Path.GetDirectoryName(PlsCfgPath) + '/';
+			SyncDataDir = SyncedPlsDir + ".sync-data/";
+			TestDir = SyncedPlsDir + ".sync-testing-temp/";
 			ReadPlaylistsFromConfigFile();
 			CreateSyncDataDir();
 			ConnecToYtApi();
+			CheckYtdlpCorrectness();
         }
 
 		private void ReadConfigFile()
@@ -64,6 +71,16 @@ namespace yt_playlists_synchronizer
             }
             if(PlsCfgPath.Length == 0)
 				throw new Exception("Configuration file is invalid. Could not find path to file with playlists to sync.");
+            lineStartIndx = cfgFile.IndexOf("RegionCode:");
+            if(lineStartIndx == -1)
+				RegionCode = RegionInfo.CurrentRegion.TwoLetterISORegionName;
+			else
+			{
+				for(int i = 12 + lineStartIndx; i < cfgFile.Length && cfgFile[i] != ';'; i++)
+				{
+					RegionCode += cfgFile[i];
+				}
+			}
 		}
 
 		private void ReadPlaylistsFromConfigFile()
@@ -72,12 +89,15 @@ namespace yt_playlists_synchronizer
 				throw new FileNotFoundException("Could not find playlists configuration file.");
             string[] playlistsFileLines = File.ReadAllLines(PlsCfgPath);
 			List<string> PlNamesInUse = new List<string>();
-			PlNamesInUse.Add("sync-data");
+			PlNamesInUse.Add(".sync-data");
+			PlNamesInUse.Add(".sync-testing-temp");
 			AddUsedFilenames(PlNamesInUse, SyncedPlsDir);
 			int counter = 0;
 			foreach(var line in playlistsFileLines)
 			{
 				counter++;
+				if(line.Length == 0)
+					continue;
 				PlaylistToSync playlist = LineToPlaylistToSync(line); 
 				if(playlist.PlaylistID.Length == 0)
 				{
@@ -101,37 +121,40 @@ namespace yt_playlists_synchronizer
 
 		private void AddUsedFilenames(List<string> list, string path)
 		{
-			foreach(var name in Directory.GetFiles(path))
-				list.Add(GetNameFromPath(name));
+			foreach(var name in Directory.GetFiles(path, "*.*", SearchOption.TopDirectoryOnly))
+				list.Add(Path.GetFileName(name));
 		}
 
-		private string GetParentDirectory(string path)
-		{
-			int i = path.Length - 1;
-			if(path.EndsWith('/') || path.EndsWith('\\'))
-				i--;
-			while(i >= 0 && path[i] != '/' && path[i] != '\\')
-				i--;
-			if(i < 0) return "./";
-			return path.Substring(0, i+1);
-		}
+		//private string GetParentDirectory(string path)
+		//{
+			//int i = path.Length - 1;
+			//if(path.EndsWith('/') || path.EndsWith('\\'))
+				//i--;
+			//while(i >= 0 && path[i] != '/' && path[i] != '\\')
+				//i--;
+			//if(i < 0) return "./";
+			//return path.Substring(0, i+1);
+		//}
 
-		public string GetNameFromPath(string path)
-		{
-			int nameOffset = 0;
-			if(path.EndsWith('/') || path.EndsWith('\\'))
-				nameOffset--;
-			int i = path.Length - 1;
-			while(i > 0 && path[i-1] != '/' && path[i-1] != '\\')
-				i--;
-			//if(i == 0) return path.Substring(0, path.Length - Convert.ToInt32(Convert.ToBoolean(path[path.Length - 1]  - '\\') != Convert.ToBoolean(path[path.Length - 1] - '/')));
-			//return path.Substring(i, path.Length - i - Convert.ToInt32(Convert.ToBoolean(path[path.Length - 1]  - '\\') != Convert.ToBoolean(path[path.Length - 1] - '/')));
-			return path.Substring(i, path.Length + nameOffset - i);
-		}
+		//public string GetNameFromPath(string path)
+		//{
+			//int nameOffset = 0;
+			//if(path.EndsWith('/') || path.EndsWith('\\'))
+				//nameOffset--;
+			//int i = path.Length - 1;
+			//while(i > 0 && path[i-1] != '/' && path[i-1] != '\\')
+				//i--;
+			////if(i == 0) return path.Substring(0, path.Length - Convert.ToInt32(Convert.ToBoolean(path[path.Length - 1]  - '\\') != Convert.ToBoolean(path[path.Length - 1] - '/')));
+			////return path.Substring(i, path.Length - i - Convert.ToInt32(Convert.ToBoolean(path[path.Length - 1]  - '\\') != Convert.ToBoolean(path[path.Length - 1] - '/')));
+			//return path.Substring(i, path.Length + nameOffset - i);
+		//}
 
 		private PlaylistToSync LineToPlaylistToSync(string line)
 		{
 			var playlist = new PlaylistToSync();
+			playlist.DesiredPlaylistName = "";
+			playlist.PlaylistID = "";
+			playlist.NumberingOffset = 0;
 			string[] splitted;
 			splitted = line.Split(';');
 			if(splitted.Length < 2)
@@ -200,6 +223,62 @@ namespace yt_playlists_synchronizer
 				return false;
 			}
 			return true;
+		}
+
+		public void CheckYtdlpCorrectness()
+		{
+			if(!Directory.Exists(TestDir))
+				Directory.CreateDirectory(TestDir);
+			if(Directory.GetFileSystemEntries(TestDir, "*.*", SearchOption.TopDirectoryOnly).Length > 0)
+				throw new Exception($"Directory {TestDir} is not empty. Delete all its content and start program again");
+
+			var vidFile = $"ytdlp-test";
+			var ytReq = YtService.Videos.List("id");
+			ytReq.Chart = VideosResource.ListRequest.ChartEnum.MostPopular;
+			ytReq.RegionCode = RegionCode;
+			VideoListResponse ytRes;
+			try
+			{
+				ytRes = ytReq.Execute();
+			}
+			catch
+			{
+				throw new Exception("Could not connect or authorize with YouTube API");
+			}
+			if((ytRes?.Items?.Count ?? 0) == 0)
+				throw new Exception("Cannot connect to YouTube and get most popular video for testing purposes. Cannot check if yt-dlp is capable of downloading video. Check your internet connection");
+
+			var ytdlp = new Process();
+			ytdlp.StartInfo.FileName = "yt-dlp";
+			// Downloads only 1s of the most popular video, with worst quality available
+			ytdlp.StartInfo.Arguments = $" --download-sections \"*00:00-00:01\" -S \"+quality\" -o \"{TestDir}{vidFile}.%(ext)s\" \"{ytRes.Items[0].Id}\"";
+			ytdlp.StartInfo.RedirectStandardError = true;
+			ytdlp.StartInfo.RedirectStandardOutput = true;
+			ytdlp.Start();
+			ytdlp.WaitForExit();
+			//int corruptedFilesCount = Directory.GetFileSystemEntries(TestDir, $"{vidFile}.*.part", SearchOption.TopDirectoryOnly).Length;
+			//corruptedFilesCount += Directory.GetFileSystemEntries(TestDir, $"{vidFile}.f*.*", SearchOption.TopDirectoryOnly).Length;
+			bool corruptedFiles = false;
+			corruptedFiles = Directory.EnumerateFileSystemEntries(TestDir, $"{vidFile}.*.part", SearchOption.TopDirectoryOnly).GetEnumerator().MoveNext();
+			if(!corruptedFiles)
+			{
+				foreach(var path in Directory.EnumerateFileSystemEntries(TestDir, $"{vidFile}.f*", SearchOption.TopDirectoryOnly))
+				{
+					var f = Path.GetFileName(path);
+					if(Program.IsOneFormatVidExtension(f.Substring(vidFile.Length)))
+					{
+						corruptedFiles = true;
+						break;
+					}
+				}
+			}
+			int vidFilesCount = Directory.GetFileSystemEntries(TestDir, $"{vidFile}.*", SearchOption.TopDirectoryOnly).Length;
+			//vidFilesCount -= corruptedFilesCount;
+			foreach(var f in new DirectoryInfo(TestDir).GetFiles())
+				f.Delete();
+
+			if(ytdlp.ExitCode != 0 || vidFilesCount != 1 || corruptedFiles)
+				throw new Exception($"Yt-dlp is unable to download data. Check for new yt-dlp version with -U flag and check your region code. Yt-dlp error output:\n{ytdlp.StandardError.ReadToEnd()}");
 		}
     }
 }
