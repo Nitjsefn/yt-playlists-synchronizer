@@ -316,6 +316,48 @@ namespace yt_playlists_synchronizer
 			if(File.Exists(SyncDataPath))
 				syncdataFile = File.ReadAllText(SyncDataPath);
 
+			while(VideosToSync.Count > 0)
+			{
+        		int oldestVidIndx = 0;
+                for(int i = 0; i < VideosToSync.Count; i++)
+                	if(VideosToSync[i].Snippet.PublishedAtDateTimeOffset < VideosToSync[oldestVidIndx].Snippet.PublishedAtDateTimeOffset)
+                    	oldestVidIndx = i;
+                var video = VideosToSync[oldestVidIndx];
+                int videoNumber = BDVidAvailablePos + Playlist.NumberingOffset;
+                var backupDate = DateTime.Now.ToString(dateTimeFormat);
+                var videoName = "";
+                var videoLink = "";
+                var videoCreator = "";
+                var videoDescription = "";
+                var thumbnailUrl = "";
+                var videoCreatorLink = "";
+                var descriptionFileName = "";
+                var descriptionFilePath = "";
+                var thumbnailFileName = "";
+                var thumbnailFilePath = "";
+                var thumbnailExtension = "";
+				var videoFileName = "";
+				var videoFileNameFormat = "";
+				var capsFileName = "";
+				var capsFileNameFormat = "";
+				var dateOfFindingVideo = "";
+                if(video.Snippet.PublishedAt != null) dateOfFindingVideo = video.Snippet.PublishedAt.Value.ToString(dateTimeFormat);
+                if(video.Snippet.ResourceId.VideoId != null) videoLink = "https://youtu.be/" + video.Snippet.ResourceId.VideoId;
+                if(video.Snippet.Thumbnails.Maxres != null) thumbnailUrl = video.Snippet.Thumbnails.Maxres.Url;
+                else if(video.Snippet.Thumbnails.Standard != null) thumbnailUrl = video.Snippet.Thumbnails.Standard.Url;
+                else if(video.Snippet.Thumbnails.High != null) thumbnailUrl = video.Snippet.Thumbnails.High.Url;
+                else if(video.Snippet.Thumbnails.Medium != null) thumbnailUrl = video.Snippet.Thumbnails.Medium.Url;
+                else if(video.Snippet.Thumbnails.Default__ != null) thumbnailUrl = video.Snippet.Thumbnails.Default__.Url;
+                if(video.Snippet.Title != null) videoName = video.Snippet.Title;
+                if(video.Snippet.VideoOwnerChannelTitle != null) videoCreator = video.Snippet.VideoOwnerChannelTitle;
+                if(video.Snippet.VideoOwnerChannelId != null) videoCreatorLink = "http://youtube.com/channel/" + video.Snippet.VideoOwnerChannelId;
+                if( (videoCreator != "") || (videoCreatorLink != "") || (videoLink != "") || (video.Snippet.Description != null) || (dateOfFindingVideo != "") ) videoDescription = $"(by {videoCreator} --> {videoCreatorLink})\nOriginal video link: {videoLink}\nFound:\t{dateOfFindingVideo}\nBackup:\t{backupDate}\n\n" + video.Snippet.Description;
+               	csvFile = $"{videoNumber}{Delim}{videoName}{Delim}{thumbnailUrl != ""}{Delim}{videoDescription != ""}{Delim}{dateOfFindingVideo}{Delim}{backupDate}\n" + csvFile;
+               	syncdataFile = $"{BDVidAvailablePos}{Delim}{video.Snippet.ResourceId.VideoId}\n" + syncdataFile;
+
+               	BDVidAvailablePos++;
+               	VideosToSync.RemoveAt(oldestVidIndx);
+			}
 			ytdlp.Close();
 		}
 	}
