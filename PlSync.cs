@@ -570,5 +570,16 @@ namespace yt_playlists_synchronizer
 			////return path.Substring(i, path.Length - i - Convert.ToInt32(Convert.ToBoolean(path[path.Length - 1]  - '\\') != Convert.ToBoolean(path[path.Length - 1] - '/')));
 			//return path.Substring(i, path.Length + nameOffset - i);
 		//}
+
+		private void SaveVideosToSync()
+		{
+			if(!Directory.Exists(NotFinishedDir))
+				Directory.CreateDirectory(NotFinishedDir);
+			foreach(var v in VideosToSync)
+			{
+				var filePath = $"{NotFinishedDir}{FileNameChecker.FormatFileName(v.Snippet.Title)}.{v.Snippet.ResourceId.VideoId}.{DateTime.Now.ToString("yyyyMMddHHmmss")}.json";
+				File.AppendAllText(filePath, JsonSerializer.Serialize(v, new JsonSerializerOptions{ WriteIndented = true }));
+			}
+		}
 	}
 }
