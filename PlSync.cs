@@ -541,5 +541,34 @@ namespace yt_playlists_synchronizer
 					err += line + '\n';
 			return err;
 		}
+
+		private bool CheckYtConn()
+		{
+			bool connAvailable;
+			try
+			{
+				var status = YtPing.Send("www.youtube.com").Status;
+				connAvailable = (status == IPStatus.Success);
+				connAvailable = connAvailable && (YtPing.Send("i.ytimg.com").Status == IPStatus.Success);
+			}
+			catch
+			{
+				connAvailable = false;
+			}
+			return connAvailable;
+		}
+
+		//public string GetNameFromPath(string path)
+		//{
+			//int nameOffset = 0;
+			//if(path.EndsWith('/') || path.EndsWith('\\'))
+				//nameOffset--;
+			//int i = path.Length - 1;
+			//while(i > 0 && path[i-1] != '/' && path[i-1] != '\\')
+				//i--;
+			////if(i == 0) return path.Substring(0, path.Length - Convert.ToInt32(Convert.ToBoolean(path[path.Length - 1]  - '\\') != Convert.ToBoolean(path[path.Length - 1] - '/')));
+			////return path.Substring(i, path.Length - i - Convert.ToInt32(Convert.ToBoolean(path[path.Length - 1]  - '\\') != Convert.ToBoolean(path[path.Length - 1] - '/')));
+			//return path.Substring(i, path.Length + nameOffset - i);
+		//}
 	}
 }
