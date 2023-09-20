@@ -352,6 +352,26 @@ namespace yt_playlists_synchronizer
                 if(video.Snippet.VideoOwnerChannelTitle != null) videoCreator = video.Snippet.VideoOwnerChannelTitle;
                 if(video.Snippet.VideoOwnerChannelId != null) videoCreatorLink = "http://youtube.com/channel/" + video.Snippet.VideoOwnerChannelId;
                 if( (videoCreator != "") || (videoCreatorLink != "") || (videoLink != "") || (video.Snippet.Description != null) || (dateOfFindingVideo != "") ) videoDescription = $"(by {videoCreator} --> {videoCreatorLink})\nOriginal video link: {videoLink}\nFound:\t{dateOfFindingVideo}\nBackup:\t{backupDate}\n\n" + video.Snippet.Description;
+
+				if(CheckYtConn() == false)
+				{
+					Program.Log.ErrorLine($"Cannot connect with YouTube. Check your internet connection. Check if the last video data is synced correctly. Already received data will be stored in \"{NotFinishedDir}\" in case of some video loss before next sync. Program won't use this data for future syncs. This playlist won't be fully synchronized. Interrupting...");
+				   	try
+				   	{
+				   		SaveVideosToSync();
+				   	    File.WriteAllText(NewSyncDataPath, syncdataFile);
+				   	    File.WriteAllText(NewCsvPath, csvFile);
+				   	    File.Move(NewSyncDataPath, SyncDataPath, true);
+				   	    File.Move(NewCsvPath, CsvPath, true);
+				   	}
+				   	catch
+				   	{
+				   	    Program.Log.ErrorLine($"Something went wrong while saving files. Check directory access permissions and available space on drive. Progress of sync won't be saved, but already downloaded files will remain untouched until the next sync, which can move those files into '{DoubledFilesDir}'");
+				   	}
+				   	ytdlp.Close();
+				   	return;
+				}
+
                	csvFile = $"{videoNumber}{Delim}{videoName}{Delim}{thumbnailUrl != ""}{Delim}{videoDescription != ""}{Delim}{dateOfFindingVideo}{Delim}{backupDate}\n" + csvFile;
                	syncdataFile = $"{BDVidAvailablePos}{Delim}{video.Snippet.ResourceId.VideoId}\n" + syncdataFile;
 
