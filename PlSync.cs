@@ -532,5 +532,14 @@ namespace yt_playlists_synchronizer
 			}
 			ytdlp.Close();
 		}
+
+		private string ReadYtdlpErrors(StreamReader sr)
+		{
+			string err = "";
+			foreach(string line in sr.ReadToEnd().Split('\n'))
+				if(line.StartsWith("ERROR: "))
+					err += line + '\n';
+			return err;
+		}
 	}
 }
