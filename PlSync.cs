@@ -162,11 +162,11 @@ namespace yt_playlists_synchronizer
 						int BDVidPosWithNO = BDVidAvailablePos + Playlist.NumberingOffset;
 						if(nextVidPosByCsv > BDVidPosWithNO)
 						{
-							Program.Log.ErrorLine($"Numbering offset is too low, which can cause overwritting some previously synced files. Change offset or (backup synced data and delete content of '{TargetDir}') and start sync again. This playlist won't be synchronized. Interrupting...");
+							Program.Log.ErrorLine($"Numbering offset is too low, that can cause overwritting some previously synced files. Change offset or (backup synced data and delete content of '{TargetDir}') and start sync again. This playlist won't be synchronized. Interrupting...");
 							return;
 						}
 						if(nextVidPosByCsv < BDVidPosWithNO)
-							Program.Log.WarningLine("Numbering offset is higher than expected, which will cause gap in csv file and videos numbering. Check this after sync");
+							Program.Log.WarningLine("Numbering offset is higher than expected, that will cause gap in csv file and videos numbering. Check this after sync");
 					}
 				}
 			}
