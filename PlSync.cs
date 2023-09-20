@@ -443,6 +443,76 @@ namespace yt_playlists_synchronizer
                         }
                     }
                 }
+
+                // Video downloading
+                videoFileName = $"{videoNumber}. {FileNameChecker.FormatFileName(videoName)}";
+                videoFileNameFormat = $"{videoFileName}.%(ext)s";
+                var doubledFiles = Directory.GetFileSystemEntries(VideosDir, $"{videoNumber}. *", SearchOption.TopDirectoryOnly);
+                if(doubledFiles.Length > 0)
+                {
+            		if(!Directory.Exists(DoubledFilesDir))
+                        Directory.CreateDirectory(DoubledFilesDir);
+                    foreach(var src in doubledFiles)
+                        Directory.Move(src, $"{DoubledFilesDir}[video] {Path.GetFileName(src)}");
+                    Program.Log.WarningLine($"File(s) with the same name as video {videoNumber} already exists, so it will be moved into \"{DoubledFilesDir}\", and new video will be saved in its place. Resolve this conflict and clear dir with doubled files before next sync");
+                }
+                ytdlp.StartInfo.Arguments = $"-P \"{VideosDir}\" -o \"{videoFileNameFormat}\" \"{videoLink}\"";
+                ytdlp.Start();
+                ytdlp.WaitForExit();
+                var ytdlpError = ReadYtdlpErrors(ytdlp.StandardError);
+                //foreach(string err in ytdlpError.Split('\n'))
+                //{
+                        //if(err.Length < 3) continue;
+                        //int i = 0;
+                        //while(err[i] != ']') i++;
+                        //while(err[i] != ':') i++;
+                        //i += 2;
+                        //if(!err.Substring(i).StartsWith("This video"))
+                        //{
+                                //Program.Log.ErrorLine("");
+                                //return;
+                        //}
+                //}
+                if(ytdlpError != "")
+                    Program.Log.ErrorLine($"Error while downloading video {videoNumber}:\n{ytdlpError}");
+
+                bool corruptedVideo = Directory.EnumerateFileSystemEntries(VideosDir, $"{videoFileName}.*.part", SearchOption.TopDirectoryOnly).GetEnumerator().MoveNext();
+                if(!corruptedVideo)
+                {
+                    foreach(var path in Directory.EnumerateFileSystemEntries(VideosDir, $"{videoFileName}.f*", SearchOption.TopDirectoryOnly))
+                    {
+                        var f = Path.GetFileName(path);
+                        var ext = f.Substring(videoFileName.Length);
+                        if(Program.IsOneFormatVidExtension(ext))
+                        {
+                            corruptedVideo = true;
+                            break;
+                        }
+                    }
+                }
+                if(corruptedVideo)
+                    Program.Log.ErrorLine($"Error while downloading video {videoNumber}. Only part of the video is saved");
+                else if(Directory.GetFileSystemEntries(VideosDir, $"{videoFileName}.*", SearchOption.TopDirectoryOnly).Length == 0)
+                    Program.Log.ErrorLine($"Error while downloading video {videoNumber}. There is no saved video file. If there is no yt-dlp error check if video isn't saved with different filename");
+
+                // Captions downloading
+                ytdlpError = "";
+                doubledFiles = Directory.GetFileSystemEntries(CapsDir, $"{videoNumber}. *", SearchOption.TopDirectoryOnly);
+                if(doubledFiles.Length > 0)
+                {
+                    if(!Directory.Exists(DoubledFilesDir))
+                        Directory.CreateDirectory(DoubledFilesDir);
+                    foreach(var src in doubledFiles)
+                        Directory.Move(src, $"{DoubledFilesDir}[caps] {Path.GetFileName(src)}");
+                    Program.Log.WarningLine($"File(s) with the same name as captions {videoNumber} already exists, so it will be moved into \"{DoubledFilesDir}\", and new captions will be saved in its place. Resolve this conflict and clear dir with doubled files before next sync");
+                }
+                ytdlp.StartInfo.Arguments = $"-P \"{CapsDir}\" -o \"{videoFileNameFormat}\" --all-subs --convert-subs \"srt\" --skip-download \"{videoLink}\"";
+                ytdlp.Start();
+                ytdlp.WaitForExit();
+                ytdlpError = ReadYtdlpErrors(ytdlp.StandardError);
+                if(ytdlpError != "")
+                    Program.Log.ErrorLine($"Error while downloading captions {videoNumber}:\n{ytdlpError}");
+
                	csvFile = $"{videoNumber}{Delim}{videoName}{Delim}{thumbnailUrl != ""}{Delim}{videoDescription != ""}{Delim}{dateOfFindingVideo}{Delim}{backupDate}\n" + csvFile;
                	syncdataFile = $"{BDVidAvailablePos}{Delim}{video.Snippet.ResourceId.VideoId}\n" + syncdataFile;
 
