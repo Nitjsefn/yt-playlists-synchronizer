@@ -224,5 +224,61 @@ namespace yt_playlists_synchronizer
 			}
 			return true;
 		}
+
+		public void CheckYtdlpCorrectness()
+		{
+			if(!Directory.Exists(TestDir))
+				Directory.CreateDirectory(TestDir);
+			if(Directory.GetFileSystemEntries(TestDir, "*.*", SearchOption.TopDirectoryOnly).Length > 0)
+				throw new Exception($"Directory {TestDir} is not empty. Delete all its content and start program again");
+
+			var vidFile = $"ytdlp-test";
+			var ytReq = YtService.Videos.List("id");
+			ytReq.Chart = VideosResource.ListRequest.ChartEnum.MostPopular;
+			ytReq.RegionCode = RegionCode;
+			VideoListResponse ytRes;
+			try
+			{
+				ytRes = ytReq.Execute();
+			}
+			catch
+			{
+				throw new Exception("Could not connect or authorize with YouTube API");
+			}
+			if((ytRes?.Items?.Count ?? 0) == 0)
+				throw new Exception("Cannot connect to YouTube and get most popular video for testing purposes. Cannot check if yt-dlp is capable of downloading video. Check your internet connection");
+
+			var ytdlp = new Process();
+			ytdlp.StartInfo.FileName = "yt-dlp";
+			// Downloads only 1s of the most popular video, with worst quality available
+			ytdlp.StartInfo.Arguments = $" --download-sections \"*00:00-00:01\" -S \"+quality\" -o \"{TestDir}{vidFile}.%(ext)s\" \"{ytRes.Items[0].Id}\"";
+			ytdlp.StartInfo.RedirectStandardError = true;
+			ytdlp.StartInfo.RedirectStandardOutput = true;
+			ytdlp.Start();
+			ytdlp.WaitForExit();
+			//int corruptedFilesCount = Directory.GetFileSystemEntries(TestDir, $"{vidFile}.*.part", SearchOption.TopDirectoryOnly).Length;
+			//corruptedFilesCount += Directory.GetFileSystemEntries(TestDir, $"{vidFile}.f*.*", SearchOption.TopDirectoryOnly).Length;
+			bool corruptedFiles = false;
+			corruptedFiles = Directory.EnumerateFileSystemEntries(TestDir, $"{vidFile}.*.part", SearchOption.TopDirectoryOnly).GetEnumerator().MoveNext();
+			if(!corruptedFiles)
+			{
+				foreach(var path in Directory.EnumerateFileSystemEntries(TestDir, $"{vidFile}.f*", SearchOption.TopDirectoryOnly))
+				{
+					var f = Path.GetFileName(path);
+					if(Program.IsOneFormatVidExtension(f.Substring(vidFile.Length)))
+					{
+						corruptedFiles = true;
+						break;
+					}
+				}
+			}
+			int vidFilesCount = Directory.GetFileSystemEntries(TestDir, $"{vidFile}.*", SearchOption.TopDirectoryOnly).Length;
+			//vidFilesCount -= corruptedFilesCount;
+			foreach(var f in new DirectoryInfo(TestDir).GetFiles())
+				f.Delete();
+
+			if(ytdlp.ExitCode != 0 || vidFilesCount != 1 || corruptedFiles)
+				throw new Exception($"Yt-dlp is unable to download data. Check for new yt-dlp version with -U flag and check your region code. Yt-dlp error output:\n{ytdlp.StandardError.ReadToEnd()}");
+		}
     }
 }
