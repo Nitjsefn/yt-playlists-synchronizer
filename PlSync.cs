@@ -372,6 +372,77 @@ namespace yt_playlists_synchronizer
 				   	return;
 				}
 
+				//Creating file description
+                descriptionFileName = $"{videoNumber}. {FileNameChecker.FormatFileName(videoName)}.desc";
+                descriptionFilePath = DescDir + descriptionFileName;
+                if(File.Exists(descriptionFilePath) || Directory.Exists(descriptionFilePath))
+                {
+                	if(!Directory.Exists(DoubledFilesDir))
+                    	Directory.CreateDirectory(DoubledFilesDir);
+                    Directory.Move(descriptionFilePath, $"{DoubledFilesDir}[desc] {descriptionFileName}");
+                    Program.Log.WarningLine($"File with the same name as description {videoNumber} already exists, so it will be moved into \"{DoubledFilesDir}\", and new description will be saved in its place. Resolve this conflict and clear dir with doubled files before next sync");
+                }
+                if(videoDescription != "")
+                {
+                    //using(var sw = new StreamWriter(descriptionFilePath))
+                    //{
+                        //sw.WriteLine(videoDescription);
+                    //}
+                	try
+                	{
+                        File.WriteAllText(descriptionFilePath, videoDescription);
+                    }
+                    catch
+                    {
+                    	Program.Log.ErrorLine($"Something went wrong while saving description file for video {videoNumber}. Check directory access permissions and available space on drive. Progress of sync won't be saved, but already downloaded files will remain untouched until the next sync, which can move those files into '{DoubledFilesDir}'. Interrupting...");
+                        ytdlp.Close();
+                        return;
+                    }
+                }
+
+				//Getting thumbnail image extension
+                for (int i = thumbnailUrl.Length - 1; i >= 0; i--)
+                {
+                    if(thumbnailUrl[i] != '.') continue;
+                    thumbnailExtension = thumbnailUrl.Substring(i + 1, thumbnailUrl.Length - i - 1);
+                    break;
+                }
+
+				//Saving thumbnail image
+                thumbnailFileName = $"{videoNumber}. {FileNameChecker.FormatFileName(videoName)}.{thumbnailExtension}";
+                thumbnailFilePath = ThumbDir + thumbnailFileName;
+                if(File.Exists(thumbnailFilePath) || Directory.Exists(thumbnailFilePath))
+                {
+                	if(!Directory.Exists(DoubledFilesDir))
+                        Directory.CreateDirectory(DoubledFilesDir);
+                    Directory.Move(thumbnailFilePath, $"{DoubledFilesDir}[thumb] {thumbnailFileName}");
+                    Program.Log.WarningLine($"File with the same name as thumbnail {videoNumber} already exists, so it will be moved into \"{DoubledFilesDir}\", and new thumbnail will be saved in its place. Resolve this conflict and clear dir with doubled files before next sync");
+                }
+                if(thumbnailUrl != "")
+                {
+                    using(var fs = new FileStream(thumbnailFilePath, FileMode.Create, FileAccess.Write))
+                    {
+                        using(var w = new WebClient())
+                        {
+                        	try
+							{
+							    byte[] img = w.DownloadData(thumbnailUrl);
+							    fs.Write(img);
+							}
+							catch(IOException e)
+							{
+							
+							    Program.Log.ErrorLine($"Something went wrong while saving thumbnail for video {videoNumber}. Url: {thumbnailUrl} . Check directory access permissions and available space on drive. Progress of sync won't be saved, but already downloaded files will remain untouched until the next sync, which can move those files into '{DoubledFilesDir}'. Interrupting...");
+							    ytdlp.Close();
+							    return;
+							}
+							catch
+							{
+							    Program.Log.ErrorLine($"Something went wrong while downloading thumbnail for video {videoNumber}. Check your internet connection and available storage space. Url: {thumbnailUrl}");
+							}
+                        }
+                    }
+                }
                	csvFile = $"{videoNumber}{Delim}{videoName}{Delim}{thumbnailUrl != ""}{Delim}{videoDescription != ""}{Delim}{dateOfFindingVideo}{Delim}{backupDate}\n" + csvFile;
                	syncdataFile = $"{BDVidAvailablePos}{Delim}{video.Snippet.ResourceId.VideoId}\n" + syncdataFile;
 
