@@ -264,7 +264,10 @@ namespace yt_playlists_synchronizer
 				}
 			}
 
-			PerformSync();
+			if(VideosToSync.Count == 0)
+				Program.Log.InfoLine("There is no new video to synchronize");
+			else
+				PerformSync();
 
 			Program.Log.InfoLine($"Synchronization End: {Playlist.DesiredPlaylistName}");
 		}
