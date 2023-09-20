@@ -152,6 +152,9 @@ namespace yt_playlists_synchronizer
 		private PlaylistToSync LineToPlaylistToSync(string line)
 		{
 			var playlist = new PlaylistToSync();
+			playlist.DesiredPlaylistName = "";
+			playlist.PlaylistID = "";
+			playlist.NumberingOffset = 0;
 			string[] splitted;
 			splitted = line.Split(';');
 			if(splitted.Length < 2)
