@@ -264,6 +264,8 @@ namespace yt_playlists_synchronizer
 				}
 			}
 
+			PerformSync();
+
 			Program.Log.InfoLine($"Synchronization End: {Playlist.DesiredPlaylistName}");
 		}
 
@@ -300,6 +302,21 @@ namespace yt_playlists_synchronizer
 
 		private void PerformSync()
 		{
+			int csvAvailablePos = BDVidAvailablePos + Playlist.NumberingOffset;
+			string dateTimeFormat = "dd.MM.yyyy HH:mm:ss";
+			string csvFile = "";
+			string syncdataFile = "";
+			var ytdlp = new Process();
+			ytdlp.StartInfo = new ProcessStartInfo("yt-dlp");
+			ytdlp.StartInfo.RedirectStandardError = true;
+			ytdlp.StartInfo.RedirectStandardOutput = true;
+// Move this to end, just before saving
+			if(File.Exists(CsvPath))
+				csvFile = File.ReadAllText(CsvPath);
+			if(File.Exists(SyncDataPath))
+				syncdataFile = File.ReadAllText(SyncDataPath);
+
+			ytdlp.Close();
 		}
 	}
 }
