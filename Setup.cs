@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using FileNameCheckerNs;
 
 using Google.Apis.Services;
 using Google.Apis.YouTube.v3;
@@ -17,23 +18,26 @@ namespace yt_playlists_synchronizer
 
     class Setup
     {
-		// SyncedPlsPath + PlsCfgFilename = PLsToSyncPath
+		// SyncedPlsPath + PlsCfgFilename = PlsCfgPath
         private string Token;
-        public string PLsToSyncPath;
+        public string PlsCfgPath;
 		public string BasicCfgPath;
         public string SyncedPlsDir;
+        public string SyncDataDir;
 		public YouTubeService YtService;
         public List<PlaylistToSync> PLsToSync { get; }
 
         public Setup(string configFilename)
         {
             Token = "";
-            PLsToSyncPath = "";
+            PlsCfgPath = "";
 			BasicCfgPath = configFilename;
 			PLsToSync = new List<PlaylistToSync>();
 			ReadConfigFile();
-			SyncedPlsDir = GetParentDirectory(PLsToSyncPath);
+			SyncedPlsDir = GetParentDirectory(PlsCfgPath);
+			SyncDataDir = SyncedPlsDir + "sync-data/";
 			ReadPlaylistsFromConfigFile();
+			CreateSyncDataDir();
 			ConnecToYtApi();
         }
 
@@ -51,23 +55,25 @@ namespace yt_playlists_synchronizer
             }
             if(Token.Length == 0)
 				throw new Exception("Configuration file is invalid. Could not find Token.");
-            lineStartIndx = cfgFile.IndexOf("PLsToSyncPath:");
+            lineStartIndx = cfgFile.IndexOf("PlsCfgPath:");
             if(lineStartIndx == -1)
 				throw new Exception("Configuration file is invalid. Could not find path to file with playlists to sync.");
-            for(int i = 15 + lineStartIndx; i < cfgFile.Length && cfgFile[i] != ';'; i++)
+            for(int i = 12 + lineStartIndx; i < cfgFile.Length && cfgFile[i] != ';'; i++)
             {
-                PLsToSyncPath += cfgFile[i];
+                PlsCfgPath += cfgFile[i];
             }
-            if(PLsToSyncPath.Length == 0)
+            if(PlsCfgPath.Length == 0)
 				throw new Exception("Configuration file is invalid. Could not find path to file with playlists to sync.");
 		}
 
 		private void ReadPlaylistsFromConfigFile()
 		{
-            if(!File.Exists(PLsToSyncPath))
+            if(!File.Exists(PlsCfgPath))
 				throw new FileNotFoundException("Could not find playlists configuration file.");
-            string[] playlistsFileLines = File.ReadAllLines(PLsToSyncPath);
+            string[] playlistsFileLines = File.ReadAllLines(PlsCfgPath);
 			List<string> PlNamesInUse = new List<string>();
+			PlNamesInUse.Add("sync-data");
+			AddUsedFilenames(PlNamesInUse, SyncedPlsDir);
 			int counter = 0;
 			foreach(var line in playlistsFileLines)
 			{
@@ -75,22 +81,28 @@ namespace yt_playlists_synchronizer
 				PlaylistToSync playlist = LineToPlaylistToSync(line); 
 				if(playlist.PlaylistID.Length == 0)
 				{
-					Program.Log.ErrorLine($"Problem with Playlist ID in {PLsToSyncPath} file in line: {counter}. This playlist won't be synchronized");
+					Program.Log.ErrorLine($"Problem with Playlist ID in {PlsCfgPath} file in line: {counter}. This playlist won't be synchronized");
 					continue;
 				}
 				if(playlist.DesiredPlaylistName.Length == 0)
 				{
-					Program.Log.ErrorLine($"Problem with Playlist Name in {PLsToSyncPath} file in line: {counter}. This playlist won't be synchronized");
+					Program.Log.ErrorLine($"Problem with Playlist Name in {PlsCfgPath} file in line: {counter}. This playlist won't be synchronized");
 					continue;
 				}
 				if(PlNamesInUse.Contains(playlist.DesiredPlaylistName))
 				{
-					Program.Log.ErrorLine($"Playlist Name: {playlist.DesiredPlaylistName} is currently in use and cannot be used again. File {PLsToSyncPath} Line: {counter}. This playlist won't be synchronized");
+					Program.Log.ErrorLine($"Playlist Name: {playlist.DesiredPlaylistName} is currently in use and cannot be used again. File {PlsCfgPath} Line: {counter}. This playlist won't be synchronized");
 					continue;
 				}
 				PLsToSync.Add(playlist);
 				PlNamesInUse.Add(playlist.DesiredPlaylistName);
 			}
+		}
+
+		private void AddUsedFilenames(List<string> list, string path)
+		{
+			foreach(var name in Directory.GetFiles(path))
+				list.Add(GetNameFromPath(name));
 		}
 
 		private string GetParentDirectory(string path)
@@ -104,20 +116,39 @@ namespace yt_playlists_synchronizer
 			return path.Substring(0, i+1);
 		}
 
+		public string GetNameFromPath(string path)
+		{
+			int nameOffset = 0;
+			if(path.EndsWith('/') || path.EndsWith('\\'))
+				nameOffset--;
+			int i = path.Length - 1;
+			while(i > 0 && path[i-1] != '/' && path[i-1] != '\\')
+				i--;
+			//if(i == 0) return path.Substring(0, path.Length - Convert.ToInt32(Convert.ToBoolean(path[path.Length - 1]  - '\\') != Convert.ToBoolean(path[path.Length - 1] - '/')));
+			//return path.Substring(i, path.Length - i - Convert.ToInt32(Convert.ToBoolean(path[path.Length - 1]  - '\\') != Convert.ToBoolean(path[path.Length - 1] - '/')));
+			return path.Substring(i, path.Length + nameOffset - i);
+		}
+
 		private PlaylistToSync LineToPlaylistToSync(string line)
 		{
 			var playlist = new PlaylistToSync();
 			string[] splitted;
-			splitted = line.Split(' ');
+			splitted = line.Split(';');
 			if(splitted.Length < 2)
 				return playlist;
-			playlist.DesiredPlaylistName = splitted[0];
+			playlist.DesiredPlaylistName = FileNameChecker.FormatFileName(splitted[0]);
 			playlist.PlaylistID = splitted[1];
 			int numberingOffset;
 			if(splitted.Length == 3)
 				if(int.TryParse(splitted[2], out numberingOffset))
 					playlist.NumberingOffset = numberingOffset;
 			return playlist;
+		}
+
+		private void CreateSyncDataDir()
+		{
+			if(!Directory.Exists(SyncDataDir))
+				Directory.CreateDirectory(SyncDataDir);
 		}
 
 		private void ConnecToYtApi()
