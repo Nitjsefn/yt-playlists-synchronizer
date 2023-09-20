@@ -519,6 +519,17 @@ namespace yt_playlists_synchronizer
                	BDVidAvailablePos++;
                	VideosToSync.RemoveAt(oldestVidIndx);
 			}
+			try
+			{
+			    File.WriteAllText(NewSyncDataPath, syncdataFile);
+			    File.WriteAllText(NewCsvPath, csvFile);
+			    File.Move(NewSyncDataPath, SyncDataPath, true);
+			    File.Move(NewCsvPath, CsvPath, true);
+			}
+			catch
+			{
+			    Program.Log.ErrorLine($"Sync ended, but something went wrong while saving csv files. Check directory access permissions and available space on drive. Progress of sync won't be saved, but already downloaded files will remain untouched until the next sync, which can move those files into '{DoubledFilesDir}'");
+			}
 			ytdlp.Close();
 		}
 	}
