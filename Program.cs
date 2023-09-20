@@ -17,9 +17,56 @@ namespace yt_playlists_synchronizer
 		private static void Main(string[] args)
 		{
 			Log = new Logger();
-			Context = new Setup(ConfigFileName);
+			try
+			{
+				Context = new Setup(ConfigFileName);
+			}
+			catch(Exception e)
+			{
+				Log.ErrorLine(e.Message);
+				return;
+			}
+
 			foreach(var pl in Context.PLsToSync)
-				new PlSync(pl).Synchronize();
+			{
+				try
+				{
+					new PlSync(pl).Synchronize();
+				}
+				catch(Exception e)
+				{
+					Log.ErrorLine($"Sync error: {e.Message}");
+					return;
+				}
+			}
+		}
+
+		public static bool IsPartVidExtension(string ext)
+		{
+			// Valid ext: .*.part
+			if(ext.Length < 6)
+				return false;
+			if(ext[0] != '.')
+				return false;
+			if(!ext.EndsWith(".part"))
+				return false;
+			return true;
+		}
+
+		public static bool IsOneFormatVidExtension(string ext)
+		{
+			// Valid ext: .f*.*
+			if(ext.Length < 3)
+				return false;
+			if(ext.EndsWith(".part"))
+				return false;
+			if(!ext.StartsWith(".f"))
+				return false;
+			int i = ext.Length - 1;
+			while(ext[i] != '.') i--;
+			if(i == 0)
+				return false;
+			return true;
 		}
 	}
 }
